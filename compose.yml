@@ -1,0 +1,11 @@
+services:
+  lambda:
+    build: .
+    command: index.handler
+    network_mode: bridge
+    environment:
+      AWS_LAMBDA_EXEC_WRAPPER: /opt/aws-secretsmanager-env
+      AWS_SECRET: ${AWS_SECRET}
+      AWS_PROFILE: ${AWS_PROFILE}
+    volumes:
+      - ~/.aws:/root/.aws:ro

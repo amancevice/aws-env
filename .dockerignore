@@ -1,0 +1,7 @@
+*
+!cmd/
+!src/
+!.cobra.yaml
+!go.mod
+!go.sum
+!main.go
