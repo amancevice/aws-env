@@ -24,6 +24,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -35,11 +36,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var CliName string = "aws-secretsmanager-env"
+var CliVersion string = "0.1.0"
 var SecretId string = os.Getenv("AWS_SECRET")
-var Version string = "0.1.0"
 var ShowVersion bool
 var rootCmd = &cobra.Command{
-	Use:   "aws-secretsmanager-env",
+	Use:   CliName,
 	Short: "Export a SecretsManager JSON secret to a Lambda runtime ENV",
 	Long:  "Export a SecretsManager JSON secret to a Lambda runtime ENV",
 	Args:  args,
@@ -65,6 +67,7 @@ func ExportSecret() {
 	client := secretsmanager.NewFromConfig(cfg)
 
 	// Get SecretsManager secret
+	fmt.Printf("EXPORT SecretId: %s\n", SecretId)
 	input := &secretsmanager.GetSecretValueInput{SecretId: aws.String(SecretId)}
 	result, err := GetSecretValue(context.TODO(), client, input)
 	if err != nil {
@@ -86,37 +89,44 @@ func ExportSecret() {
 }
 
 func args(cmd *cobra.Command, args []string) error {
+	if len(args) >= 1 && args[0][0:1] != "/" {
+		return errors.New(CliName + " first arg must be an absolute path")
+	}
+
 	return nil
 }
 
 func run(cmd *cobra.Command, args []string) {
 	if ShowVersion {
-		os.Stdout.WriteString("aws-secretsmanager-env v" + Version + "\n")
-	} else {
-		fmt.Printf("EXPORT SecretId: %s\n", SecretId)
+		os.Stdout.WriteString(CliName + " v" + CliVersion + "\n")
+	} else if len(args) >= 1 {
 		ExportSecret()
 		syscall.Exec(args[0], args, os.Environ())
 	}
 }
 
 func init() {
-	rootCmd.SetHelpTemplate(`{{.Short}}
+	rootCmd.SetHelpTemplate(`AWS SecretsManager ENV
 
-To use this executable in Lambda you must set the ENV variables:
-  - AWS_SECRET
-  - AWS_LAMBDA_EXEC_WRAPPER
+{{.Short}}
+
+To use this executable in AWS Lambda you must set the ENV variables:
+  AWS_SECRET               [name of your secret]
+  AWS_LAMBDA_EXEC_WRAPPER  [absolute path to {{.Name}}]
 
 Usage:
-  {{.Name}} [OPTIONS] ARGS...
+  {{.Name}} [OPTIONS] [ARGS...]
 
-Flags:
-  -h, --help      help for {{.Name}}
-  -v, --version   show version
+Options:
+  -h, --help         show help
+  -v, --version      show version
+  -s, --secret NAME  AWS SecretsManager secret ID (defaults to $AWS_SECRET)
 `)
 	rootCmd.SetUsageTemplate(`
 Usage:
-  {{.Name}} [OPTIONS] ARGS...
+  {{.Name}} [OPTIONS] [ARGS...]
 `)
+	rootCmd.PersistentFlags().StringVarP(&SecretId, "secret", "s", "", "SecretsManager secret")
 	rootCmd.PersistentFlags().BoolVarP(&ShowVersion, "version", "v", false, "show version")
 }
 
