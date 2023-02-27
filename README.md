@@ -2,20 +2,21 @@
 
 Lambda runtime wrapper for exporting a SecretsManager JSON secret to the ENV
 
-## Function
+## Purpose
 
-Instead of storing sensitive ENV variables in your Lambda function configuration, you might store a JSON document containing sensitive variables and their values:
+Instead of storing sensitive ENV variables in your Lambda function configuration, you might store a JSON document containing sensitive variables and their values and then load that secret in a Lambda [runtime wrapper](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-modify.html#runtime-wrapper) script
+
+Example secret JSON:
 
 ```json
+
 {
   "SOME_API_KEY": "F!ZZ",
   "SOME_SECRET": "B@ZZ"
 }
 ```
 
-`aws-secretsmanager-env` allows you to export this document into the ENV during the runtime init phase of the function lifecycle.
-
-In your function handler, your code can reference any ENV variables stored in your secret.
+Including `aws-secretsmanager-env` in your functions allows you to export the contents of a secret JSON document into the ENV during the runtime init phase of the function lifecycle.
 
 ## Usage
 
