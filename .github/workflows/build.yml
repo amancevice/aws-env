@@ -1,0 +1,16 @@
+name: build
+on:
+  pull_request:
+  push:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+      - run: make build
+      # - uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: TODO
+      #     body: |
+      #       TODO
