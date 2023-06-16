@@ -1,6 +1,6 @@
 LAMBDA_URL := http://localhost:8080/2015-03-31/functions/function/invocations
 
-build: aws-secretsmanager-env.zip
+build: aws-env.zip
 
 test:
 	docker compose up --build --detach
@@ -11,10 +11,10 @@ test:
 
 .PHONY: build test
 
-aws-secretsmanager-env: **/*.go
+aws-env: **/*.go
 	docker compose up --build --detach
-	docker compose cp lambda:/opt/aws-secretsmanager-env .
+	docker compose cp lambda:/opt/aws-env .
 	docker compose down
 
-aws-secretsmanager-env.zip: aws-secretsmanager-env
+aws-env.zip: aws-env
 	zip -9qr $@ $<

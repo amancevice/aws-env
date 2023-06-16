@@ -15,5 +15,5 @@
 # vendor/
 
 __pycache__/
-aws-secretsmanager-env
+aws-env
 *.zip

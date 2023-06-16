@@ -16,11 +16,11 @@ Example secret JSON:
 }
 ```
 
-Including `aws-secretsmanager-env` in your functions allows you to export the contents of a secret JSON document into the ENV during the runtime init phase of the function lifecycle.
+Including `aws-env` in your functions allows you to export the contents of a secret JSON document into the ENV during the runtime init phase of the function lifecycle.
 
 ## Usage
 
-Download the latest version of the `aws-secretsmanager-env` binary from the releases page.
+Download the latest version of the `aws-env` binary from the releases page.
 
 Or, build it yourself with `make build`.
 
@@ -31,7 +31,7 @@ Set the following environmental variables in your Lambda:
 | ENV                       | Example                                             |
 |:--------------------------|:----------------------------------------------------|
 | `AWS_SECRET`              | _[your secret name]_                                |
-| `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/aws-secretsmanager-env` (Lambda layer)        |
-| `AWS_LAMBDA_EXEC_WRAPPER` | `/var/task/aws-secretsmanager-env` (Lambda package) |
+| `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/aws-env` (Lambda layer)        |
+| `AWS_LAMBDA_EXEC_WRAPPER` | `/var/task/aws-env` (Lambda package) |
 
 With these variables set, your lambda will export the given SecretsManager secret JSON to the Lambda runtime ENV.

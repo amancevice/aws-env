@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/amancevice/aws-secretsmanager-env/cmd"
+import "github.com/amancevice/aws-env/cmd"
 
 func main() {
 	cmd.Execute()
