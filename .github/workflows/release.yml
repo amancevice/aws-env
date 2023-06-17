@@ -1,0 +1,23 @@
+name: release
+on:
+  release:
+    types:
+      - published
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+      - name: build
+        run: make build VERSION=${{ github.event.release.tag_name }}
+      - name: upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release upload
+          ${{ github.event.release.tag_name }}
+          pkg/*

@@ -15,5 +15,6 @@
 # vendor/
 
 __pycache__/
+pkg/
 aws-env
 *.zip
