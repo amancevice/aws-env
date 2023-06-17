@@ -25,7 +25,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -44,9 +44,6 @@ var CliName string = "aws-env"
 var CliVersion string = "0.1.0"
 var DefaultConfigPath = "/var/task/.aws"
 var ShowVersion bool
-var ConfigPath string
-var SecretIds []string
-var Paths []string
 
 var UsageTemplate string = `
 Usage:
@@ -59,11 +56,8 @@ Usage:
   {{.Name}} [OPTIONS] [ARGS...]
 
 Options:
-  -h, --help          show help
-  -v, --version       show version
-	-c, --config        Optional path to config [default: {{.DefaultConfigPath}}]
-  -p, --path PATH     AWS SSM ParameterStore path
-  -s, --secret-id ID  AWS SecretsManager secret ID
+  -h, --help     show help
+  -v, --version  show version
 
 `
 
@@ -76,27 +70,36 @@ var rootCmd = &cobra.Command{
 }
 
 type ConfigObject struct {
-	Secrets []string
-	Paths   []string
+	Exports []struct {
+		Secretsmanager string
+		Ssm            string
+	}
 }
 
-type SecretsManagerGetSecretValueAPI interface {
+type LogWriter struct {
+}
+
+type SecretsManagerGetSecretValueApi interface {
 	GetSecretValue(ctx context.Context,
 		params *secretsmanager.GetSecretValueInput,
 		optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
 }
 
-type SSMGetParametersByPathAPI interface {
+type SsmGetParametersByPathApi interface {
 	GetParametersByPath(ctx context.Context,
 		params *ssm.GetParametersByPathInput,
 		optFns ...func(*ssm.Options)) (*ssm.GetParametersByPathOutput, error)
 }
 
-func GetParametersByPath(ctx context.Context, api SSMGetParametersByPathAPI, input *ssm.GetParametersByPathInput) (*ssm.GetParametersByPathOutput, error) {
+func (writer LogWriter) Write(bytes []byte) (int, error) {
+	return fmt.Fprint(os.Stderr, "ENV "+string(bytes))
+}
+
+func GetParametersByPath(ctx context.Context, api SsmGetParametersByPathApi, input *ssm.GetParametersByPathInput) (*ssm.GetParametersByPathOutput, error) {
 	return api.GetParametersByPath(ctx, input)
 }
 
-func GetSecretValue(ctx context.Context, api SecretsManagerGetSecretValueAPI, input *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
+func GetSecretValue(ctx context.Context, api SecretsManagerGetSecretValueApi, input *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
 	return api.GetSecretValue(ctx, input)
 }
 
@@ -108,27 +111,32 @@ func GetAwsConfig() aws.Config {
 	return cfg
 }
 
-func GetConfig(configPath string) ConfigObject {
-	config := ConfigObject{}
+func GetConfig() ConfigObject {
+	// Get config path from $AWS_ENV_CONFIG or use default
+	configPath := os.Getenv("AWS_ENV_CONFIG")
+	if configPath == "" {
+		configPath = DefaultConfigPath
+	}
 
-	_, error := os.Stat(ConfigPath)
+	// Load & return config if it exists
+	config := ConfigObject{}
+	_, error := os.Stat(configPath)
 	if !errors.Is(error, os.ErrNotExist) {
-		data, err := ioutil.ReadFile(configPath)
+		data, err := os.ReadFile(configPath)
 		if err != nil {
 			log.Fatalf("unable to read config: %v", err)
 		}
 		yaml.Unmarshal([]byte(data), &config)
 	}
-
 	return config
 }
 
 func ExportParameters(path string) {
-	// Set up SecretsManager client
+	// Set up SSM client
 	client := ssm.NewFromConfig(GetAwsConfig())
 
-	// Get SecretsManager secret
-	log.Printf("ssm:GetParametersByPath Path: %s WithDecryption: true", path)
+	// Get params
+	log.Printf("Ssm:GetParametersByPath Path: %s WithDecryption: true", path)
 	input := &ssm.GetParametersByPathInput{Path: aws.String(path), WithDecryption: aws.Bool(true)}
 	result, err := GetParametersByPath(context.TODO(), client, input)
 	if err != nil {
@@ -149,7 +157,7 @@ func ExportSecret(secretId string) {
 	client := secretsmanager.NewFromConfig(GetAwsConfig())
 
 	// Get SecretsManager secret
-	log.Printf("secretsmanager:GetSecretValue SecretId: %s", secretId)
+	log.Printf("SecretsManager:GetSecretValue SecretId: %s", secretId)
 	input := &secretsmanager.GetSecretValueInput{SecretId: aws.String(secretId)}
 	result, err := GetSecretValue(context.TODO(), client, input)
 	if err != nil {
@@ -177,10 +185,10 @@ func ExportSecret(secretId string) {
 
 func ExportVar(key string, val string) {
 	if os.Getenv(key) == "" {
-		log.Printf("export %s", key)
+		// log.Printf("export %s", key)
 		os.Setenv(key, val)
-	} else {
-		log.Printf("export %s [already exported]", key)
+		// } else {
+		// 	log.Printf("export %s [already exported]", key)
 	}
 }
 
@@ -195,13 +203,12 @@ func init() {
 	rootCmd.SetHelpTemplate(HelpTemplate)
 	rootCmd.SetUsageTemplate(UsageTemplate)
 	rootCmd.PersistentFlags().BoolVarP(&ShowVersion, "version", "v", false, "show version")
-	rootCmd.PersistentFlags().StringVarP(&ConfigPath, "config", "c", DefaultConfigPath, "Config path")
-	rootCmd.PersistentFlags().StringArrayVarP(&SecretIds, "secret-id", "s", []string{}, "SecretsManager secret ID")
-	rootCmd.PersistentFlags().StringArrayVarP(&Paths, "path", "p", []string{}, "SystemsManager ParameterStore path")
 }
 
 func args(cmd *cobra.Command, args []string) error {
-	if len(args) >= 1 && args[0][0:1] != "/" {
+	if len(args) == 0 {
+		return errors.New(CliName + " requires at least 1 argument")
+	} else if len(args) >= 1 && args[0][0:1] != "/" {
 		return errors.New(CliName + " first arg must be an absolute path")
 	}
 
@@ -211,23 +218,39 @@ func args(cmd *cobra.Command, args []string) error {
 func run(cmd *cobra.Command, args []string) {
 	if ShowVersion {
 		os.Stdout.WriteString(CliName + " v" + CliVersion + "\n")
-	} else if len(args) >= 1 {
-
-		for _, secretId := range SecretIds {
-			ExportSecret(secretId)
-		}
-		for _, path := range Paths {
-			ExportParameters(path)
-		}
-
-		config := GetConfig(ConfigPath)
-		for _, secretId := range config.Secrets {
-			ExportSecret(secretId)
-		}
-		for _, path := range config.Paths {
-			ExportParameters(path)
-		}
-
-		syscall.Exec(args[0], args, os.Environ())
+		return
 	}
+
+	// Set up logger
+	log.SetFlags(0)
+	log.SetOutput(new(LogWriter))
+
+	// Export from config
+	config := GetConfig()
+	for _, resource := range config.Exports {
+		if resource.Secretsmanager != "" {
+			secretId := resource.Secretsmanager
+			ExportSecret(secretId)
+		}
+		if resource.Ssm != "" {
+			path := resource.Ssm
+			ExportParameters(path)
+		}
+	}
+
+	// Export from ENV
+	exports := strings.Split(os.Getenv("AWS_ENV_EXPORT"), ",")
+	secretsmanagerPrefix := "secretsmanager://"
+	ssmPrefix := "ssm://"
+	for _, export := range exports {
+		if strings.HasPrefix(export, secretsmanagerPrefix) {
+			secretId := strings.TrimSuffix(strings.TrimPrefix(export, secretsmanagerPrefix), "/")
+			ExportSecret(secretId)
+		} else if strings.HasPrefix(export, ssmPrefix) {
+			path := "/" + strings.TrimPrefix(export, ssmPrefix)
+			ExportParameters(path)
+		}
+	}
+
+	syscall.Exec(args[0], args, os.Environ())
 }

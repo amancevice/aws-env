@@ -1,5 +1,5 @@
 FROM public.ecr.aws/lambda/python
 RUN yum install -y golang
-COPY . /opt
+COPY . /opt/
 RUN cd /opt && go build
-RUN mv /opt/cmd/index.py /var/task/index.py
+ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/aws-env

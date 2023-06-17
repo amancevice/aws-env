@@ -20,46 +20,42 @@ Export the ENV variable `AWS_LAMBDA_EXEC_WRAPPER` with your desired invocation u
 
 ## Configuration
 
-You can use a command-line options and/or a YAML configuration file to export the desired resources to ENV.
+You can use a the ENV variable `AWS_ENV_EXPORTS` and/or a YAML configuration file to export the desired resources to ENV.
 
-Configure `aws-env` by exporting your desired invocation as the variable `AWS_LAMBDA_EXEC_WRAPPER` in your Lambda runtime.
+### ENV variable
 
-### Command Line Options
+Set the variable `AWS_ENV_EXPORTS` as a comma-delimited list of resources to export.
 
-You can use command line options to choose with params/secrets to export.
+A resource should formatted like a URI, using the scheme for the service where the resource lives.
 
-Export ParameterStore parameters from one or more parameter paths:
+Examples:
 
-```bash
-/opt/aws-env --path /my/params/ --path ...
-```
+- `secretsmanager://my-secret/`
+- `secretsmanager://my-other-secret/`
+- `ssm://my/path/`
+- `ssm://my/other/path/`
 
-Export one or more SecretsManager secrets:
-
-```bash
-/opt/aws-env --secret-id my-secret --secret-id ...
-```
-
-Export a combination of parameters and secrets:
+Example ENV var:
 
 ```bash
-/opt/aws-env --path /my/path/ --secret-id my-secret ...
+AWS_ENV_EXPORTS=secretsmanager://my-secret/,ssm://my/path/
 ```
+
+> Note that `ssm://` resources _must_ end with a trailing `/`
 
 ### Config File
 
 You can include a config file named `.aws` in your lambda package that contains the parameters/secrets you wish to export.
 
-By default this file is expected to be found at `/var/task/.aws`, but this can be overridden on the command line using the `--config` or `-c` option
+By default this file is expected to be found at `/var/task/.aws`, but this can be overridden using the ENV variable `AWS_ENV_CONFIG`, eg `AWS_ENV_CONFIG=/var/task/.config/aws`
 
 Example Config:
 
 ```yaml
 ---
-paths:
-  - /my/path/
-  - /my/other/path/
-secrets:
-  - my-secret
-  - my-other-secret
+exports:
+  - secretsmanager: my-secret
+  - secretsmanager: my-other-secret
+  - ssm: /my/path/
+  - ssm: /my/other/path/
 ```
