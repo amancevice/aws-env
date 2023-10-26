@@ -1,5 +1,7 @@
+import json
 import os
 
 
 def handler(*_):
-    return sorted(os.environ)
+    print(json.dumps(sorted(os.environ)))
+    return True
