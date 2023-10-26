@@ -41,7 +41,7 @@ import (
 )
 
 var CliName string = "aws-env"
-var CliVersion string = "0.1.0"
+var CliVersion string = "0.1.1"
 var DefaultConfigPath = "/var/task/.aws"
 var ShowVersion bool
 
