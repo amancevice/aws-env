@@ -19,7 +19,7 @@ test: build
 
 .PHONY: build clean test
 
-aws-env: **/*.go
+aws-env: go.* **/*.go
 	go build
 
 pkg/aws-env-$(VERSION)-lambda-$(ARCH).zip: | pkg
