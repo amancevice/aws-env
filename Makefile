@@ -1,17 +1,21 @@
 LAMBDA_URL := http://localhost:8080/2015-03-31/functions/function/invocations
 VERSION    := latest
-OS         := darwin
-ARCH       := $(shell arch)
+GOOS       := $(shell go env GOOS)
+GOARCH     := $(shell go env GOARCH)
 
-build: aws-env \
-	pkg/aws-env-$(VERSION)-lambda-$(ARCH).zip \
-	pkg/aws-env-$(VERSION)-$(OS)-$(ARCH).tar.gz
+build: bin/aws-env \
+	bin/aws-env-darwin-amd64 \
+	bin/aws-env-darwin-arm64 \
+	bin/aws-env-linux-amd64 \
+	bin/aws-env-linux-arm64 \
+	pkg/aws-env-$(VERSION)-linux-arm64.zip \
+	pkg/aws-env-$(VERSION)-linux-amd64.zip
 
 clean:
-	rm -rf aws-env pkg
+	rm -rf bin pkg
 
 test: build
-	docker compose up --build --detach
+	docker compose up --detach
 	docker compose exec lambda curl -s -XPOST -d '{}' $(LAMBDA_URL) &> /dev/null
 	docker compose exec lambda curl -s -XPOST -d '{}' $(LAMBDA_URL) &> /dev/null
 	docker compose logs
@@ -19,16 +23,21 @@ test: build
 
 .PHONY: build clean test
 
-aws-env: go.* **/*.go
-	go build
+bin/aws-env: bin/aws-env-darwin-$(GOARCH)
+	cp $< $@
 
-pkg/aws-env-$(VERSION)-lambda-$(ARCH).zip: | pkg
-	docker compose up --build --detach
-	docker compose cp lambda:/tmp/package.zip $@
-	docker compose down
+bin/aws-env-darwin-%: go.* **/*.go
+	GOOS=darwin GOARCH=$* go build -ldflags="-s -w" -o $@
 
-pkg/aws-env-$(VERSION)-$(OS)-$(ARCH).tar.gz: aws-env | pkg
-	tar czf $@ $<
+bin/aws-env-linux-%: go.* **/*.go
+	GOOS=linux GOARCH=$* go build -ldflags="-s -w" -o $@
+	upx $@
+
+pkg/aws-env-$(VERSION)-%.zip: bin/aws-env-% | pkg
+	cp $< aws-env
+	zip $@ aws-env
+	rm aws-env
 
 pkg:
+	rm -rf $@
 	mkdir -p $@
