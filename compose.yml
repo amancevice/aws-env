@@ -3,11 +3,11 @@ services:
     image: public.ecr.aws/lambda/python
     command: index.handler
     network_mode: bridge
-    platform: linux/${GOARCH:-arm64}
+    platform: linux/${ARCH:-arm64}
     environment:
       AWS_ENV_EXPORT: ${AWS_ENV_EXPORT:-ssm://my/path/}
       AWS_PROFILE: ${AWS_PROFILE:-default}
-      AWS_LAMBDA_EXEC_WRAPPER: /opt/aws-env-linux-${GOARCH:-arm64}
+      AWS_LAMBDA_EXEC_WRAPPER: /opt/aws-env-linux-${ARCH:-arm64}
     volumes:
       - ~/.aws:/root/.aws:ro
       - ./bin:/opt

@@ -1,0 +1,15 @@
+name: Test aws-env
+description: Build aws-env and test in Docker
+inputs:
+  arch:
+    description: Target arch
+    default: arm64
+  version:
+    description: Target version
+    default: latest
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v3
+    - shell: bash
+      run: make test ARCH=${{ inputs.arch }} VERSION=${{ inputs.version }}
