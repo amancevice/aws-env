@@ -206,7 +206,7 @@ func init() {
 }
 
 func args(cmd *cobra.Command, args []string) error {
-	if len(args) == 0 {
+	if len(args) == 0 && !ShowVersion {
 		return errors.New(CliName + " requires at least 1 argument")
 	} else if len(args) >= 1 && args[0][0:1] != "/" {
 		return errors.New(CliName + " first arg must be an absolute path")
